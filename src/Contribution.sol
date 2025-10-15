@@ -29,7 +29,7 @@ contract Contribution {
 
   
 
-  struct contributor{
+  struct Contributor{
     uint256 contributorId;
     address payable contributor;
     string note;
@@ -44,7 +44,7 @@ contract Contribution {
     uint256 public rewardthreshold; 
 
 
-  mapping(address => mapping(uint256 => contributor)) public contributors;
+  mapping(address => mapping(uint256 => Contributor)) public contributors;
   mapping(address => uint[] ) public contributorids;
   mapping(address => uint256) public totalcontributions;
   mapping(address => bool) public hasClaimedRewards;
@@ -92,7 +92,7 @@ contract Contribution {
      
 function addContribution( address payable _contributor, string memory _note,uint _contributorId, uint _amountinETH) public {
     contributorid++;
-    contributors[msg.sender][contributorid] = contributor ({
+    contributors[_contributor][contributorid] = Contributor ({
       contributorId : _contributorId ,
       contributor : _contributor ,
       note : _note ,
@@ -109,7 +109,7 @@ function addContribution( address payable _contributor, string memory _note,uint
 
 
  function getContributions  ( address payable _contributor, uint256 _contributorId) public view onlyRecruiter returns ( string memory note, uint256 amountinETH, uint256 timestamp) {
- contributor memory record = contributors[_contributor][_contributorId];
+ Contributor memory record = contributors[_contributor][_contributorId];
  return (record.note, record.amountinETH, record.timestamp);
  
 }
@@ -126,7 +126,7 @@ amountinETH = new uint256[](length);
 
 for ( uint i = 0; i< length ; i++)
 {
-  contributor memory record = contributors[_recruiter][_ids[i]];
+  Contributor memory record = contributors[_recruiter][_ids[i]];
   _ids[i] = record.contributorId;
   note[i] = record.note;
   timestamp[i] = record.timestamp;
