@@ -71,8 +71,8 @@ contract Contribution {
 
         recruiter = msg.sender;
         rewardToken = IERC20(_rewardToken);
-        rewardthreshold = rewardthreshold; 
-        rewardAmount = rewardAmount;
+        rewardthreshold = 1 ether; // 1 ether  
+        rewardAmount = 10 ether;
       }
   receive() external payable {}
 
@@ -90,7 +90,9 @@ contract Contribution {
   }
 
      
-function addContribution( address payable _contributor, string memory _note,uint _contributorId, uint _amountinETH) public {
+function addContribution( address payable _contributor, string memory _note,uint256 _contributorId, uint256 _amountinETH) public payable {
+  // added payable because test failed 
+  //makes it transfer of eth from contributor to blockchain feasible 
     contributorid++;
     contributors[_contributor][contributorid] = Contributor ({
       contributorId : _contributorId ,
@@ -149,11 +151,14 @@ return (_ids , note , timestamp , amountinETH );
   require (totalcontributions[msg.sender] >= rewardthreshold , "Not eligible");
   require (!hasClaimedRewards[msg.sender] , "cant claim twice" ); 
 
-  hasClaimedRewards[msg.sender] = false ;
+  hasClaimedRewards[msg.sender] = true ;  //it is supposed to be true for the function to pass 
   rewardToken.transfer (msg.sender , rewardAmount);
+  require(rewardAmount > 0,"Rewards exhausted ");
   emit RewardStatus ( msg.sender , rewardAmount , true );
+  return (payable(msg.sender) , rewardAmount);
 
  }
+
   
 
 }
