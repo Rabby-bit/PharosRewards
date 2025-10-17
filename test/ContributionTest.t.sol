@@ -36,6 +36,7 @@ contract ContributionTest is Test {
     Contribution contribution;
     address recruiter; 
     event RewardStatus(address contributor, uint256 amount, bool status);
+    event notTypicalContribution (address indexed sender, uint256 value, bytes data );
 
     function setUp() public { 
         //in setup you are to ideally put the parameter from your constructor 
@@ -192,7 +193,68 @@ contract ContributionTest is Test {
 
     
     }
-    
 
+    function test_fallbackEthandMessageSender () public {
+        //Arrange 
+        address notTypicalContributor =  makeAddr("notTypicalContributor");
+        vm.deal(notTypicalContributor, 200 ether);
+        
+        vm.expectEmit(true, false , false, true);
+        emit notTypicalContribution(notTypicalContributor, 20 ether, bytes("first contributor" ));
+
+        //Act
+        vm.prank(notTypicalContributor);
+        (bool success, ) = address(contribution).call{value: 20 ether}(
+     bytes("first contributor"));
+
+
+        //Assert
+        console.log();
+        assertTrue(success, "Fallback call failed");
+
+        //the assertion has been done already with the expectEmit function 
+}
+function test_fallbackEthSender () public {
+        //Arrange 
+        address notTypicalContributor =  makeAddr("notTypicalContributor");
+        vm.deal(notTypicalContributor, 200 ether);
+        
+        vm.expectEmit(true, false , false, true);
+        emit notTypicalContribution(notTypicalContributor, 20 ether, bytes("") );
+
+        //Act
+        vm.prank(notTypicalContributor);
+        (bool success, ) = address(contribution).call{value: 20 ether}(bytes(""));
+
+
+        //Assert
+        console.log();
+        assertTrue(success, "Fallback call failed");
+
+
+}
+
+function test_fallbackMessageSender () public {
+        //Arrange 
+        address notTypicalContributor =  makeAddr("notTypicalContributor");
+        vm.deal(notTypicalContributor, 200 ether);
+        
+        vm.expectEmit(true, false , false, true);
+        emit notTypicalContribution(notTypicalContributor, 0, bytes("first contribution") );
+
+        //Act
+        vm.prank(notTypicalContributor);
+        (bool success, ) = address(contribution).call{value: 0}(bytes("first contribution"));
+
+
+        //Assert
+        console.log();
+        assertTrue(success, "Fallback call failed");
+
+
+}
+
+function test_ifnoReClaimWork() public {
+    /// to complete tomorrow 
 
 }

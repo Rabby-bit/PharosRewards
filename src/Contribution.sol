@@ -74,7 +74,7 @@ contract Contribution {
         rewardthreshold = 1 ether; // 1 ether  
         rewardAmount = 10 ether;
       }
-  receive() external payable {}
+  /// no need for the previous function 
 
   fallback() external payable {
     if (msg.value > 0 && msg.data.length > 0) {
