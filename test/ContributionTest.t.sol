@@ -34,7 +34,8 @@ contract MockERC20 is IERC20 {
 contract ContributionTest is Test {
 
     Contribution contribution;
-    address recruiter; 
+    address recruiter;
+    MockERC20 rewardTokenMock;
     event RewardStatus(address contributor, uint256 amount, bool status);
     event notTypicalContribution (address indexed sender, uint256 value, bytes data );
 
@@ -157,7 +158,7 @@ contract ContributionTest is Test {
         vm.startPrank(contributor);
 
         //Act
-        contribution.addContribution(contributor, note, contributorId, amountinETH);
+        contribution.addContribution(contributor, note, amountinETH);
         vm.stopPrank();
 
         //Assert
@@ -175,7 +176,7 @@ contract ContributionTest is Test {
         
 
         vm.startPrank(recipient);
-        contribution.addContribution{value: 200 ether}(recipient, "first note",  1 , 200 ether);
+        contribution.addContribution{value: 200 ether}(recipient, "first note",  200 ether);
         vm.stopPrank();
 
         ///Act
@@ -253,8 +254,109 @@ function test_fallbackMessageSender () public {
 
 
 }
+function test_ifgetAllContributionLoopWorks () public {
+    //Arrange
+    address payable contributor = payable (makeAddr("contributor"));
+    
+    vm.deal(contributor, 200 ether);
+    vm.prank(contributor);
+    vm.warp(block.timestamp);
+    contribution.addContribution{value : 5 ether} (contributor , "first contribution" , 5 ether);
+    contribution.addContribution{value : 3 ether} (contributor , "second contribution" ,  2 ether);
+    contribution.addContribution{value : 2 ether} (contributor , "third contribution" , 3 ether);
+    
+    //Act
+    vm.prank(recruiter);
 
-function test_ifnoReClaimWork() public {
-    /// to complete tomorrow 
+   (uint256[] memory contributorId, string[] memory note, uint256[] memory timestamp, uint256[] memory amountinETH) =
+    contribution.getAllContributions(recruiter);
+
+    //Assert
+    assertGt(contributorId.length , 0, "empty array");
+    assertGt(note.length , 0, "empty array");
+    assertGt(timestamp.length, 0 ,"empty array");
+    assertGt(amountinETH.length ,0 , "empty array");
+
+
+    
 
 }
+
+function test_contributorRevertWhenNotEligible () public {
+  //Arrange 
+        address payable recipient = payable (makeAddr("recipient"));
+        uint256 rewardAmount = 10 ether;
+        vm.deal(recipient, 20000 ether);
+        
+
+        vm.startPrank(recipient);
+        contribution.addContribution{value: 0.1 ether}(recipient, "first note",  0.1 ether);
+        vm.stopPrank();
+
+        ///Act
+        
+        vm.expectRevert("Not eligible");
+        emit RewardStatus ( recipient , 0.1 ether  , false );
+        vm.prank(recipient);
+        contribution.claimRewards();  
+
+        //Assert
+        
+}
+
+function test_contributorRevertCanClaimTwice () public {
+  //Arrange 
+        address payable recipient = payable (makeAddr("recipient"));
+        uint256 rewardAmount = 10 ether;
+        vm.deal(recipient, 20000 ether);
+        
+
+        vm.startPrank(recipient);
+        contribution.addContribution{value: 10 ether}(recipient, "first note",  10 ether);
+        vm.stopPrank();
+
+        ///Act
+        
+        vm.startPrank(recipient);
+        contribution.claimRewards(); 
+        vm.stopPrank(); 
+
+        vm.expectRevert("cant claim twice");
+        vm.startPrank(recipient);
+        contribution.claimRewards(); 
+        vm.stopPrank(); 
+
+
+
+        //Assert
+        
+}
+function test_contributorRevertRewardsExhausted () public {
+  //Arrange 
+        Contribution contribution = new Contribution(address(rewardTokenMock), 1 ether, 0);
+        address payable recipient = payable (makeAddr("recipient"));
+        
+        vm.deal(recipient, 20000 ether);
+        
+
+        vm.startPrank(recipient);
+        contribution.addContribution{value: 0.1 ether}(recipient, "first note", 0.1 ether);
+       vm.stopPrank();
+
+       // Act & Assert
+       vm.prank(recipient);
+       vm.expectRevert("Not eligible"); // <-- expect revert immediately before the call
+       contribution.claimRewards();
+
+        
+}
+
+
+
+
+
+}
+
+
+
+

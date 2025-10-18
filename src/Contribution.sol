@@ -48,6 +48,9 @@ contract Contribution {
   mapping(address => uint[] ) public contributorids;
   mapping(address => uint256) public totalcontributions;
   mapping(address => bool) public hasClaimedRewards;
+  mapping(address => uint256) contributorCount;
+  Contributor[] public allContributions;
+
 
   event ContributionAdded(address payable indexed contributor, string);
   event notTypicalContribution (address indexed sender, uint256 value, bytes data );
@@ -90,17 +93,25 @@ contract Contribution {
   }
 
      
-function addContribution( address payable _contributor, string memory _note,uint256 _contributorId, uint256 _amountinETH) public payable {
+function addContribution( address payable _contributor, string memory _note, uint256 _amountinETH) public payable {
   // added payable because test failed 
   //makes it transfer of eth from contributor to blockchain feasible 
-    contributorid++;
+    contributorCount[_contributor]++;
     contributors[_contributor][contributorid] = Contributor ({
-      contributorId : _contributorId ,
+      contributorId : contributorid,
       contributor : _contributor ,
       note : _note ,
       timestamp : block.timestamp, 
       amountinETH : _amountinETH
     });
+
+    allContributions.push (Contributor ({
+      contributorId : contributorid,
+      contributor : _contributor ,
+      note : _note ,
+      timestamp : block.timestamp, 
+      amountinETH : _amountinETH
+    }));
 
     totalcontributions[_contributor] += _amountinETH;
 
@@ -115,27 +126,33 @@ function addContribution( address payable _contributor, string memory _note,uint
  return (record.note, record.amountinETH, record.timestamp);
  
 }
+function getMyContributions  ( uint256 _contributorId) public view  returns ( string memory note, uint256 amountinETH, uint256 timestamp) {
+ Contributor memory record = contributors[msg.sender][_contributorId];
+ return (record.note, record.amountinETH, record.timestamp);
+ 
+}
 
 function getAllContributions (address _recruiter) public view onlyRecruiter returns (uint256[] memory contributorId, string[] memory note, uint256[] memory timestamp, uint256[] memory amountinETH)
 {
 uint256[] memory _ids = contributorids[_recruiter];
-uint length = _ids.length; 
 
-_ids = new uint256[](length);
+
+uint256 length = allContributions.length;
+contributorId = new uint256[](length);
 note = new string[](length);
 timestamp = new uint256[](length);
 amountinETH = new uint256[](length);
 
 for ( uint i = 0; i< length ; i++)
 {
-  Contributor memory record = contributors[_recruiter][_ids[i]];
-  _ids[i] = record.contributorId;
-  note[i] = record.note;
-  timestamp[i] = record.timestamp;
-  amountinETH[i] = record.amountinETH;
+  Contributor memory c = allContributions[i];
+  contributorId[i] = c.contributorId;
+  note[i] = c.note;
+  timestamp[i] = c.timestamp;
+  amountinETH[i] = c.amountinETH;
 
 }
-return (_ids , note , timestamp , amountinETH );
+return (contributorId, note , timestamp , amountinETH );
 
 }
   
