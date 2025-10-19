@@ -138,13 +138,12 @@ contract ContributionTest is Test {
             uint256 amountinETH = 1 ether;
             vm.startPrank(randomcontributor);
 
-            //Act
+            //Act & Assert
             
             vm.expectRevert("only recruiter can call this function");
             (uint256[] memory contributorId, string[] memory _note, uint256[] memory timestamp, uint256[] memory _amountinETH) = contribution.getAllContributions(randomcontributor);
             vm.stopPrank();
 
-            //Assert
 
             
 
@@ -179,7 +178,7 @@ contract ContributionTest is Test {
         contribution.addContribution{value: 200 ether}(recipient, "first note",  200 ether);
         vm.stopPrank();
 
-        ///Act
+        ///Act & Assert
         
         //vm.expectEmit(true , false , false , true);
         // my test ran without this so i commented it out
@@ -190,7 +189,7 @@ contract ContributionTest is Test {
        
         
 
-        //Assert
+        
 
     
     }
@@ -293,14 +292,14 @@ function test_contributorRevertWhenNotEligible () public {
         contribution.addContribution{value: 0.1 ether}(recipient, "first note",  0.1 ether);
         vm.stopPrank();
 
-        ///Act
+        ///Act && Assert
         
         vm.expectRevert("Not eligible");
         emit RewardStatus ( recipient , 0.1 ether  , false );
         vm.prank(recipient);
         contribution.claimRewards();  
 
-        //Assert
+        
         
 }
 
@@ -315,7 +314,7 @@ function test_contributorRevertCanClaimTwice () public {
         contribution.addContribution{value: 10 ether}(recipient, "first note",  10 ether);
         vm.stopPrank();
 
-        ///Act
+        ///Act & Assert
         
         vm.startPrank(recipient);
         contribution.claimRewards(); 
@@ -326,9 +325,6 @@ function test_contributorRevertCanClaimTwice () public {
         contribution.claimRewards(); 
         vm.stopPrank(); 
 
-
-
-        //Assert
         
 }
 function test_contributorRevertRewardsExhausted () public {
@@ -350,11 +346,6 @@ function test_contributorRevertRewardsExhausted () public {
 
         
 }
-
-
-
-
-
 }
 
 

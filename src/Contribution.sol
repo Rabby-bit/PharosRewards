@@ -74,8 +74,8 @@ contract Contribution {
 
         recruiter = msg.sender;
         rewardToken = IERC20(_rewardToken);
-        rewardthreshold = 1 ether; // 1 ether  
-        rewardAmount = 10 ether;
+        rewardthreshold = _rewardthreshold; // 1 ether  
+        rewardAmount = _rewardAmount;
       }
   /// no need for the previous function 
 
