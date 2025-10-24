@@ -19,22 +19,25 @@
 //SPDX-License-Idenitifier: MIT
 pragma solidity ^0.8.19;
 
+import {ILogAutomation, Log} from "@chainlink/contracts/src/v0.8/automation/interfaces/ILogAutomation.sol";
+
 interface IERC20 {
   function transfer (address recipient, uint amount ) external returns (bool);
 }
 
+ contract Contribution is ILogAutomation {
 
-contract Contribution {
 
 
   
-
   struct Contributor{
+
     uint256 contributorId;
     address payable contributor;
     string note;
     uint256 timestamp;
     uint256 amountinETH;
+    
  }
     address immutable recruiter;
     uint256 contributorid; 
@@ -42,6 +45,9 @@ contract Contribution {
     IERC20 public rewardToken;
     uint256 public rewardAmount;
     uint256 public rewardthreshold; 
+  bytes32 public immutable ContributionAdded_SIG;
+  bytes32 public immutable notTypicalContribution_SIG;
+  bytes32 public immutable RewardStatus_SIG;
 
 
   mapping(address => mapping(uint256 => Contributor)) public contributors;
@@ -54,7 +60,7 @@ contract Contribution {
 
   event ContributionAdded(address payable indexed contributor, string);
   event notTypicalContribution (address indexed sender, uint256 value, bytes data );
-  event RewardStatus(address indexed recipient, uint256 _rewardamount, bool success);
+  event RewardStatus(address indexed recipient, uint256 _rewardamount, bool indexed success);
   
     modifier onlyRecruiter {
     require(
@@ -76,7 +82,11 @@ contract Contribution {
         rewardToken = IERC20(_rewardToken);
         rewardthreshold = _rewardthreshold; // 1 ether  
         rewardAmount = _rewardAmount;
-      }
+        ContributionAdded_SIG = keccak256("ContributionAdded(address,string)");
+        notTypicalContribution_SIG = keccak256 ("notTypicalContribution(address, uint256, bytes)");
+        RewardStatus_SIG = keccak256 ("RewardStatus(address,uint256, bool)");
+ }
+      
   /// no need for the previous function 
 
   fallback() external payable {
@@ -92,7 +102,55 @@ contract Contribution {
     }
   }
 
-     
+ function checkLog(
+    Log calldata log,
+    bytes memory checkData 
+  ) external  override returns (bool upkeepNeeded, bytes memory performData) {
+    bytes32 topic0 = log.topics[0];
+    if (topic0 == ContributionAdded_SIG) {
+      upkeepNeeded = true;
+      performData = abi.encode (topic0 ,log.topics[1], log.data);
+    } else if (topic0 == notTypicalContribution_SIG ) {
+      upkeepNeeded = true;
+      performData = abi.encode(topic0,log.topics[1], log.data );
+    } else if (topic0 == RewardStatus_SIG ) {
+      upkeepNeeded = true;
+      performData = abi.encode(topic0 ,log.topics[1], log.topics[2], log.data);
+    } else { upkeepNeeded = false; }
+
+    
+  }
+function performUpkeep(bytes calldata performData) external override {
+
+    bytes32 topic0;
+    bytes32 topic1;
+    bytes memory data;
+
+     (topic0, topic1, data) = abi.decode(performData, (bytes32, bytes32, bytes));
+
+  //(address contributor , bytes memory data) = abi.decode (performData(address, bytes) );
+  //(address  sender, uint256 value, bytes data ) = abi.decode (performData(log.topic[1], log.data , log.data));
+  //(address indexed recipient, uint256 _rewardamount, bool indexed success) = abi.decode (performData(log.topic[1], log.topic[2], log.data));
+
+
+  if (topic0 == ContributionAdded_SIG)
+  {
+   (address contributor , bytes memory data) = abi.decode (performData,(address, bytes) );
+   emit ContributionAdded ( payable(contributor) , string (data) );
+   
+  } else if (topic0== notTypicalContribution_SIG) {
+    (address  sender, uint256 value, bytes memory data ) = abi.decode (performData ,(address, uint256, bytes));
+     emit notTypicalContribution( sender, value , data );
+  } else if (topic0== RewardStatus_SIG) {
+    (address recipient, uint256 _rewardamount, bool success) = abi.decode (performData,(address, uint256, bool));
+    emit RewardStatus ( recipient , rewardAmount , true );
+  }
+
+}
+
+
+
+
 function addContribution( address payable _contributor, string memory _note, uint256 _amountinETH) public payable {
   // added payable because test failed 
   //makes it transfer of eth from contributor to blockchain feasible 

@@ -1,3 +1,9 @@
 [profile.default]
 rpc_url = "https://testnet.dplabs-internal.com"
 chain_id = 688688
+optimizer = true
+optimizer_runs = 200
+remappings = [
+
+    "@chainlink/=lib/chainlink-brownie-contracts/"
+]
