@@ -20,10 +20,10 @@
 pragma solidity ^0.8.19;
 
 import {ILogAutomation, Log} from "@chainlink/contracts/src/v0.8/automation/interfaces/ILogAutomation.sol";
+//import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "forge-std/console.sol";
 
-interface IERC20 {
-  function transfer (address recipient, uint amount ) external returns (bool);
-}
 
  contract Contribution is ILogAutomation {
 
@@ -77,6 +77,8 @@ interface IERC20 {
     locked = false;
   }
   constructor(address _rewardToken, uint256 _rewardthreshold, uint256 _rewardAmount) {
+           require(_rewardToken != address(0), "rewardToken can't be zero");
+
 
         recruiter = msg.sender;
         rewardToken = IERC20(_rewardToken);
@@ -85,6 +87,9 @@ interface IERC20 {
         ContributionAdded_SIG = keccak256("ContributionAdded(address,string)");
         notTypicalContribution_SIG = keccak256 ("notTypicalContribution(address, uint256, bytes)");
         RewardStatus_SIG = keccak256 ("RewardStatus(address,uint256, bool)");
+
+        console.log("Reward token address in contract:", address(rewardToken));
+    console.log("Contract token balance:", rewardToken.balanceOf(address(this)));
  }
       
   /// no need for the previous function 

@@ -5,26 +5,18 @@ pragma solidity ^0.8.19;
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Contribution} from "../src/Contribution.sol";
-import {IERC20} from "../src/Contribution.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+//import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "forge-std/console.sol";
-
-contract MockERC20 is IERC20 {
+import {ILogAutomation, Log} from "@chainlink/contracts/src/v0.8/automation/interfaces/ILogAutomation.sol";
+ contract MockERC20 is ERC20 {
     mapping(address => uint256) public balances; //a mapping that traces address and their balance
 
 
-    constructor() {
-        balances[msg.sender] = 100_000 ether; //makes the contract have enough ether to distribute as a reward
-    }
-
-    function transfer(address recipient, uint256 amount) external returns (bool) {
-        require(balances[msg.sender] >= amount, "Not enough tokens");
-        balances[msg.sender] -= amount; //this subtracts the amount sent from the reservoir
-        balances[recipient] += amount; //this add the amount of ether to the recipient
-        return true;
-    }
+    constructor() ERC20("rewardTokenMock", "CTT") {}
     //to mint tokens
     function mint(address to, uint256 amount) external {
-        balances[to] += amount;
+         _mint(to, amount);
     }
 }
  //got this from chatGPT 
@@ -35,7 +27,8 @@ contract ContributionTest is Test {
 
     Contribution contribution;
     address recruiter;
-    MockERC20 rewardTokenMock;
+    MockERC20 public rewardTokenMock;
+    address rewardTokenAddress;
     event RewardStatus(address contributor, uint256 amount, bool status);
     event notTypicalContribution (address indexed sender, uint256 value, bytes data );
 
@@ -43,10 +36,11 @@ contract ContributionTest is Test {
         //in setup you are to ideally put the parameter from your constructor 
         // setUp is to set the environment for testing 
         //creating a new contract for testing 
-
+        //rewardTokenAddress = 0x087804f808C55c0Ee8D5287558896fFdF73A2D16;
         recruiter = makeAddr("recruiter"); // this makes the test contract the recruiter
+        
         MockERC20 rewardTokenMock = new MockERC20();  
-        address rewardTokenAddress = address(rewardTokenMock);
+        rewardTokenAddress = address(rewardTokenMock);
         rewardTokenMock.mint(recruiter, 100_000 ether);  // this is to allocate token to the recruiter 
         vm.startPrank(recruiter);  
 
@@ -55,12 +49,13 @@ contract ContributionTest is Test {
         uint256 _rewardAmount = 10 ether;
         contribution = new Contribution ( rewardTokenAddress , _rewardthreshold , _rewardAmount);
         
-        IERC20(rewardTokenAddress).transfer(address(contribution), 100000 ether); //funding the contract with enough token to distribute as reward 
-        console.log("Contract token balance:", rewardTokenMock.balances(address(contribution)));
-        console.log("Recruiter balance:", rewardTokenMock.balances(recruiter));
+        rewardTokenMock.transfer(address(contribution), 100000 ether); //funding the contract with enough token to distribute as reward 
+        console.log("Contract token balance:", rewardTokenMock.balanceOf(address(contribution)));
+        console.log("Recruiter balance:", rewardTokenMock.balanceOf(recruiter));
 
 
-       
+       console.log("Reward token address:", rewardTokenAddress);
+
         vm.stopPrank();
     }
 
@@ -329,7 +324,7 @@ function test_contributorRevertCanClaimTwice () public {
 }
 function test_contributorRevertRewardsExhausted () public {
   //Arrange 
-        Contribution contribution = new Contribution(address(rewardTokenMock), 1 ether, 0);
+        
         address payable recipient = payable (makeAddr("recipient"));
         
         vm.deal(recipient, 20000 ether);
@@ -345,6 +340,125 @@ function test_contributorRevertRewardsExhausted () public {
        contribution.claimRewards();
 
         
+}
+
+/////////CheckUpkeep//////////////
+
+function test_checkifUpKeepNeededReturnsTrueForContributionAdded () public {
+    //Arrange 
+    
+    address payable contributor = payable( makeAddr("contributor"));
+    string memory note = "a contribution";
+    vm.deal(contributor, 200 ether);
+
+    vm.prank (contributor);
+    contribution.addContribution(contributor, "a contribution", 10 ether);
+    bytes32 ContributionAdded_SIG = keccak256("ContributionAdded(address,string)");
+    Log memory mocklog = Log({
+       index: 0,
+       timestamp: block.timestamp,
+       txHash: bytes32(0),
+       blockNumber: block.number,
+       blockHash: blockhash(block.number - 1),
+       source: address(contribution),
+       topics: new bytes32[](2),  
+       data: abi.encode("a contribution")           
+    });
+    mocklog.topics[0] = ContributionAdded_SIG;
+    mocklog.topics[1] = bytes32(uint256(uint160(address(contributor))));
+   // mocklog.topics[2] = keccak256(bytes("a contribution"));
+
+    
+    
+
+    //Act
+    (bool upKeepNeeded, bytes memory performData) = contribution.checkLog(mocklog ,"");
+
+    //Assert 
+    assert(upKeepNeeded == true);
+}
+function test_checkifUpKeepNeededReturnsTrueFornotTypicalContribution() public {
+    //Arrange 
+    
+    address contributor = makeAddr("contributor");
+    vm.deal(contributor , 200 ether);
+    string memory note = "amazing stuff";
+
+    vm.prank(contributor);
+    //contribution.fallback(contributor ,10 ether,"amazing stuff" );
+    //this wont work  because fallback function is not a typical function instead use this 
+    (bool success,) = address(contributor). call {value : 10 ether } ("amazing stuff");
+    bytes32 notTypicalContribution_SIG = keccak256 ("notTypicalContribution(address, uint256, bytes)");
+    Log memory mockLog =  Log ({
+     index: 0,
+     timestamp: block.timestamp,
+     txHash:bytes32(0),
+     blockNumber: block.number,
+     blockHash:blockhash(block.number - 1),
+     source: address(contribution),
+     topics: new bytes32[](2),
+     data: abi.encode("amazing stuff", uint256(10 ether))
+    });
+    mockLog.topics[0] =  notTypicalContribution_SIG;
+    mockLog.topics[1] =  bytes32(uint256(uint160(address(contributor))));
+
+    // Act
+    (bool upkeepNeeded, bytes memory performData) = contribution.checkLog(mockLog , "");
+
+    //Assert 
+    (upkeepNeeded == true);
+}
+function test_checkifUpKeepNeededReturnsTrueForRewardStatus () public {
+    //Arrange 
+    
+    address payable contributor = payable( makeAddr("contributor"));
+    string memory note = "a contribution";
+    bool success;
+    uint256 rewardAmount = 10 ether ;
+    vm.deal(contributor, 200 ether);
+    //rewardTokenMock.mint(address(contribution), 100 ether);
+    //token.mint(address(contractUnderTest), 100 ether);
+    //deal(address(rewardTokenMock), address(contribution), 100 ether);
+    // to suplly the contract with ethe/ tokens
+    //rewardTokenMock.mint(address(contribution), 100 ether);
+    //deal(address(rewardTokenMock), address(contribution), 100 ether, true);
+    vm.prank(recruiter);
+    rewardTokenMock.transfer(address(contribution), 100_000 ether);
+
+
+
+    vm.prank (contributor);
+    contribution.addContribution(contributor, "a contribution", 10 ether);
+    bytes32 ContributionAdded_SIG = keccak256("ContributionAdded(address,string)");
+
+   
+
+    vm.prank (contributor);
+    contribution.claimRewards();
+    console.log();
+    bytes32 RewardStatus_SIG = keccak256 ("RewardStatus(address,uint256, bool)");
+    Log memory mocklog = Log({
+       index: 0,
+       timestamp: block.timestamp,
+       txHash: bytes32(0),
+       blockNumber: block.number,
+       blockHash: blockhash(block.number - 1),
+       source: address(contribution),
+       topics: new bytes32[](3),  
+       data: abi.encode(uint256(10 ether))           
+    });
+    mocklog.topics[0] = RewardStatus_SIG;
+    mocklog.topics[1] = bytes32(uint256(uint160(address(contributor))));
+    mocklog.topics[2] = bytes32(uint256(success ? 1 : 0));
+
+    
+    
+
+    //Act
+    (bool upKeepNeeded, bytes memory performData) = contribution.checkLog(mocklog ,"");
+
+    //Assert 
+    assert(upKeepNeeded == true);
 }
 }
 
