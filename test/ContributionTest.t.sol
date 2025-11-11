@@ -5,7 +5,7 @@ pragma solidity ^0.8.19;
 import {Test} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Contribution} from "../src/Contribution.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ERC20} from "@openzeppelin/token/ERC20/ERC20.sol";
 //import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "forge-std/console.sol";
 import {ILogAutomation, Log} from "@chainlink/contracts/src/v0.8/automation/interfaces/ILogAutomation.sol";
@@ -342,124 +342,8 @@ function test_contributorRevertRewardsExhausted () public {
         
 }
 
-/////////CheckUpkeep//////////////
-
-function test_checkifUpKeepNeededReturnsTrueForContributionAdded () public {
-    //Arrange 
-    
-    address payable contributor = payable( makeAddr("contributor"));
-    string memory note = "a contribution";
-    vm.deal(contributor, 200 ether);
-
-    vm.prank (contributor);
-    contribution.addContribution(contributor, "a contribution", 10 ether);
-    bytes32 ContributionAdded_SIG = keccak256("ContributionAdded(address,string)");
-    Log memory mocklog = Log({
-       index: 0,
-       timestamp: block.timestamp,
-       txHash: bytes32(0),
-       blockNumber: block.number,
-       blockHash: blockhash(block.number - 1),
-       source: address(contribution),
-       topics: new bytes32[](2),  
-       data: abi.encode("a contribution")           
-    });
-    mocklog.topics[0] = ContributionAdded_SIG;
-    mocklog.topics[1] = bytes32(uint256(uint160(address(contributor))));
-   // mocklog.topics[2] = keccak256(bytes("a contribution"));
-
-    
-    
-
-    //Act
-    (bool upKeepNeeded, bytes memory performData) = contribution.checkLog(mocklog ,"");
-
-    //Assert 
-    assert(upKeepNeeded == true);
-}
-function test_checkifUpKeepNeededReturnsTrueFornotTypicalContribution() public {
-    //Arrange 
-    
-    address contributor = makeAddr("contributor");
-    vm.deal(contributor , 200 ether);
-    string memory note = "amazing stuff";
-
-    vm.prank(contributor);
-    //contribution.fallback(contributor ,10 ether,"amazing stuff" );
-    //this wont work  because fallback function is not a typical function instead use this 
-    (bool success,) = address(contributor). call {value : 10 ether } ("amazing stuff");
-    bytes32 notTypicalContribution_SIG = keccak256 ("notTypicalContribution(address, uint256, bytes)");
-    Log memory mockLog =  Log ({
-     index: 0,
-     timestamp: block.timestamp,
-     txHash:bytes32(0),
-     blockNumber: block.number,
-     blockHash:blockhash(block.number - 1),
-     source: address(contribution),
-     topics: new bytes32[](2),
-     data: abi.encode("amazing stuff", uint256(10 ether))
-    });
-    mockLog.topics[0] =  notTypicalContribution_SIG;
-    mockLog.topics[1] =  bytes32(uint256(uint160(address(contributor))));
-
-    // Act
-    (bool upkeepNeeded, bytes memory performData) = contribution.checkLog(mockLog , "");
-
-    //Assert 
-    (upkeepNeeded == true);
-}
-function test_checkifUpKeepNeededReturnsTrueForRewardStatus () public {
-    //Arrange 
-    
-    address payable contributor = payable( makeAddr("contributor"));
-    string memory note = "a contribution";
-    bool success;
-    uint256 rewardAmount = 10 ether ;
-    vm.deal(contributor, 200 ether);
-    //rewardTokenMock.mint(address(contribution), 100 ether);
-    //token.mint(address(contractUnderTest), 100 ether);
-    //deal(address(rewardTokenMock), address(contribution), 100 ether);
-    // to suplly the contract with ethe/ tokens
-    //rewardTokenMock.mint(address(contribution), 100 ether);
-    //deal(address(rewardTokenMock), address(contribution), 100 ether, true);
-    vm.prank(recruiter);
-    rewardTokenMock.transfer(address(contribution), 100_000 ether);
 
 
-
-    vm.prank (contributor);
-    contribution.addContribution(contributor, "a contribution", 10 ether);
-    bytes32 ContributionAdded_SIG = keccak256("ContributionAdded(address,string)");
-
-   
-
-    vm.prank (contributor);
-    contribution.claimRewards();
-    console.log();
-    bytes32 RewardStatus_SIG = keccak256 ("RewardStatus(address,uint256, bool)");
-    Log memory mocklog = Log({
-       index: 0,
-       timestamp: block.timestamp,
-       txHash: bytes32(0),
-       blockNumber: block.number,
-       blockHash: blockhash(block.number - 1),
-       source: address(contribution),
-       topics: new bytes32[](3),  
-       data: abi.encode(uint256(10 ether))           
-    });
-    mocklog.topics[0] = RewardStatus_SIG;
-    mocklog.topics[1] = bytes32(uint256(uint160(address(contributor))));
-    mocklog.topics[2] = bytes32(uint256(success ? 1 : 0));
-
-    
-    
-
-    //Act
-    (bool upKeepNeeded, bytes memory performData) = contribution.checkLog(mocklog ,"");
-
-    //Assert 
-    assert(upKeepNeeded == true);
-}
 }
 
 

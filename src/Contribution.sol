@@ -19,8 +19,8 @@
 //SPDX-License-Idenitifier: MIT
 pragma solidity ^0.8.19;
 
-import {ILogAutomation, Log} from "@chainlink/contracts/src/v0.8/automation/interfaces/ILogAutomation.sol";
-
+import {Log, ILogAutomation} from "@chainlink/contracts/src/v0.8/automation/interfaces/ILogAutomation.sol";
+import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import "forge-std/console.sol";
 
 
@@ -38,6 +38,12 @@ import "forge-std/console.sol";
     uint256 amountinETH;
     
  }
+  enum ActionType {
+     ContributionAdded, //1
+     notTypicalContribution,//2
+     RewardStatus//3
+     }
+
     address immutable recruiter;
     uint256 contributorid; 
     bool private locked;
@@ -106,51 +112,73 @@ import "forge-std/console.sol";
     }
   }
 
- function checkLog(
-    Log calldata log,
-    bytes memory checkData 
-  ) external  override returns (bool upkeepNeeded, bytes memory performData) {
-    bytes32 topic0 = log.topics[0];
-    if (topic0 == ContributionAdded_SIG) {
-      upkeepNeeded = true;
-      performData = abi.encode (topic0 ,log.topics[1], log.data);
-    } else if (topic0 == notTypicalContribution_SIG ) {
-      upkeepNeeded = true;
-      performData = abi.encode(topic0,log.topics[1], log.data );
-    } else if (topic0 == RewardStatus_SIG ) {
-      upkeepNeeded = true;
-      performData = abi.encode(topic0 ,log.topics[1], log.topics[2], log.data);
-    } else { upkeepNeeded = false; }
+  function checkLog(  
+        Log calldata log,  
+        bytes memory  
+    ) external pure returns (bool upkeepNeeded, bytes memory performData) {  
+      bytes32 ContributionAdded_SIG = keccak256("ContributionAdded(address,string)");
+      bytes32 notTypicalContribution_SIG = keccak256 ("notTypicalContribution(address, uint256, bytes)");
+      bytes32 RewardStatus_SIG = keccak256 ("RewardStatus(address,uint256, bool)");
 
-    
-  }
-function performUpkeep(bytes calldata performData) external override {
+        if (log.topics[0] ==  ContributionAdded_SIG)
+        {address payable Contributor = payable (address((uint160(uint256(log.topics[1]))))); 
+        string memory data = string(log.data);
+        performData = abi.encode( ActionType.ContributionAdded ,Contributor , data );
+        
+        upkeepNeeded = true; }
+          else if (log.topics[0] == notTypicalContribution_SIG)
+        { address sender = address((uint160(uint256(log.topics[1]))));
+          (uint256 value, bytes memory data) = abi.decode(log.data, (uint256, bytes));
+        performData = abi.encode(ActionType.notTypicalContribution ,sender, value, data);
+        upkeepNeeded = true; 
+               } 
+          else if (log.topics[0] == RewardStatus_SIG) 
+          {
+            address recipient = address((uint160(uint256(log.topics[1]))));
+            bool success = (uint256(log.topics[2]) != 0);
+            (uint256 rewardAmount) = abi.decode(log.data, (uint256));
+            performData = abi.encode(ActionType.RewardStatus , recipient, success, rewardAmount);
+            upkeepNeeded = true;
+              }
+          else {
+            upkeepNeeded = false;
+          }
 
-    bytes32 topic0;
-    bytes32 topic1;
-    bytes memory data;
+    }
 
-     (topic0, topic1, data) = abi.decode(performData, (bytes32, bytes32, bytes));
+    function performUpkeep(bytes calldata performData) external override {  
+      // performData = abi.encode(Contributor , data );
+      //(address Contributor, string memory data) = abi.decode(performData , (address,string));
+      //(uint256 value, bytes memory data) = abi.decode(log.data, (uint256, bytes));
+      //(address sender, uint256 value, bytes memory data) = abi.decode(performData, (address, uint256, bytes));
+      //performData = abi.encode(recipient, success, rewardAmount);
+      //(address recipient, bool success, uint256 rewardAmount) = abi.decode(performData, (address, bool , uint256));
+      // the code above was to determine how to decode performData based on different events
+      // the code below now using enums we are able to determine which event it is
 
-  //(address contributor , bytes memory data) = abi.decode (performData(address, bytes) );
-  //(address  sender, uint256 value, bytes data ) = abi.decode (performData(log.topic[1], log.data , log.data));
-  //(address indexed recipient, uint256 _rewardamount, bool indexed success) = abi.decode (performData(log.topic[1], log.topic[2], log.data));
+
+       (ActionType action) = abi.decode(performData, (ActionType));
+
+       if (action == ActionType.ContributionAdded) {
+        (, address payable Contributor , string memory data) = abi.decode(performData , (ActionType, address ,string));
+        
+       } 
+       else if (action == ActionType.notTypicalContribution) {
+        (  ,address sender, uint256 value, bytes memory data) = abi.decode(performData, (ActionType, address, uint256, bytes));
+        
+       }
+       else if (action == ActionType.RewardStatus) {
+        ( ,address recipient, bool success, uint256 rewardAmount) = abi.decode(performData, (ActionType, address, bool , uint256));
+        
+       }
+
+      
 
 
-  if (topic0 == ContributionAdded_SIG)
-  {
-   (address contributor , bytes memory data) = abi.decode (performData,(address, bytes) );
-   emit ContributionAdded ( payable(contributor) , string (data) );
-   
-  } else if (topic0== notTypicalContribution_SIG) {
-    (address  sender, uint256 value, bytes memory data ) = abi.decode (performData ,(address, uint256, bytes));
-     emit notTypicalContribution( sender, value , data );
-  } else if (topic0== RewardStatus_SIG) {
-    (address recipient, uint256 _rewardamount, bool success) = abi.decode (performData,(address, uint256, bool));
-    emit RewardStatus ( recipient , rewardAmount , true );
-  }
+       
+    }
 
-}
+ 
 
 
 
