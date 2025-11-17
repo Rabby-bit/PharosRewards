@@ -131,7 +131,7 @@ import "forge-std/console.sol";
           (uint256 value, bytes memory data) = abi.decode(log.data, (uint256, bytes));
         performData = abi.encode(ActionType.notTypicalContribution ,sender, value, data);
         upkeepNeeded = true; 
-               } 
+               }  
           else if (log.topics[0] == RewardStatus_SIG) 
           {
             address recipient = address((uint160(uint256(log.topics[1]))));
